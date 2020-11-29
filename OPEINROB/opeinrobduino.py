@@ -45,6 +45,7 @@ class OPeinRobDuino():
         logging.debug(f"send_hauteur : cell n° {index}, seuil {haut_bas}, hauteur = {hauteur}")
         seuil = haut_bas == 'haut'
         self.send_order([0,1,seuil],index,hauteur)
+        time.sleep(0.1)
 
     def send_distance_pistolet(self, index, distance ):
         '''Send la hauteur de la cellule
@@ -53,20 +54,14 @@ class OPeinRobDuino():
         '''
         logging.debug(f"send_distance_pistolet : P{index}, distance = {distance}")
         self.send_order([1,1,0],index,distance)
-
-    def send_largeur_jet(self, index, largeur):
-        '''Send la largeur du jet d'un pistolet
-            index       :   index du pistolet
-            largeur     :   largeur du jet du pistolet (en pas)
-        '''
-        logging.debug(f"send_largeur_jet : P{index}, largeur = {largeur}")
-        self.send_order([1,0,1],index,largeur)
+        time.sleep(0.1)
 
     def send_init(self):
         '''Initialise l'arduino (vide la memoire)
         '''
         logging.debug(f"Init arduino")
         self.send_order([0,0,1])
+        time.sleep(0.1)
 
 
     def send_order(self,a,b=0,d=None):
@@ -85,10 +80,10 @@ class OPeinRobDuino():
         '''
         if d is None:
             d = []
-        a.reverse()
-        b = bin(b)[2:]
-        b = '0'*(3-len(b))+b
-        b =  b[::-1]
+        if type(d) != list:
+            d = self.int_to_bitlist(d)
+        #a.reverse()
+        b = self.int_to_bitlist(b)
         d.reverse()
         d = [0]*(8-len(d)) + d
         buf = bitarray(16)
@@ -98,9 +93,15 @@ class OPeinRobDuino():
         buf[8] = d[-1] # 1ere cellule
         buf[7] = 1 # for the 2nd byte
         buf[:7] = bitarray(d[:-1])
-        #logging.debug(f"send_cells : {buf}")
+        logging.debug(f"send_cells : {buf}")
         self.connect()
         self.arduino.write(buf.tobytes())
+
+    @staticmethod
+    def int_to_bitlist(n):
+        n = bin(n)[2:]
+        n = '0'*(3-len(n))+n
+        return  list(n[::-1])
 
     def read(self):
         while self.arduino.inWaiting()>0:

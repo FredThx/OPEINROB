@@ -19,6 +19,10 @@ class RobotPeint():
         '''
         self.detection_entree = detection_entree
         self.robduino = robduino
+        self.update_robduino()
+
+    def update_robduino(self):
+        self.detection_entree.update_robduino(self.robduino)
 
     def run(self):
         '''Run forever

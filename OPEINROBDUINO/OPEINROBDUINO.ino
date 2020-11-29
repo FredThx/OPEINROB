@@ -4,8 +4,10 @@
 #define PIN_FIN_COURSE 4
 
 #define RATIO_AVANCE 10 // Rapport de division du signal de l'avance
-#define NB_PISTOLETS 3
+#define NB_CELLULES 3 //max 8
+#define NB_PISTOLETS 3 //max 8
 int pin_pistolets[NB_PISTOLETS] = {8,9,10};
+
 
 
 byte masques[L_MASQUES]; // On va l'utiliser comme un tore
@@ -14,9 +16,8 @@ byte cells;
 int position_monte_baisse=0;
 int position_haut_monte_baisse = 100;
 int distance_pistolet[NB_PISTOLETS];
-int largeur_jet[NB_PISTOLETS];
-int seuil_bas_cellules[8];
-int seuil_haut_cellules[8];
+int seuil_bas_cellules[NB_CELLULES];
+int seuil_haut_cellules[NB_CELLULES];
 int compteur_avance = 0; // Utilisé pour diviser la frequence de l'avance par RATIO_AVANCE
 
 void setup() {
@@ -48,7 +49,6 @@ void loop() {
 // a=010 : set hauteur cellule seuil bas
 // a=011 : set hauteur cellule seuil haut
 // a=110 : set distance pistolet
-// a=101 : set largeur jet pistolet
 // a=001 : INIT
 //
 // b = index (de la cellule, du pistolet)
@@ -61,27 +61,27 @@ void read_serial(){
     b0 = Serial.read();
     if (bitRead(b0,0)==1){
       // Si lecture du byte n°2 => on passe
-      Serial.println("Invalid 1st byte received.");
+      Serial.println("Invalid 1 st byte received.");
     }else{
       b1 = Serial.read();
       if (bitRead(b1,0)==0){
         // Si lecture du byte n°1 => on passe
       Serial.println("Invalid 2nd byte received.");
       }else{
-        //Serial.print("2 bytes received : ");
-        //Serial.print(b0);
-        //Serial.print(" ");
-        //Serial.println(b1);
+        Serial.print("2 bytes received : ");
+        Serial.print(b0);
+        Serial.print(" ");
+        Serial.println(b1);
         a = (b0 >> 1) & B00000111;
-        //Serial.print("Order (a): ");
-        //Serial.println(a);
+        Serial.print("Order (a): ");
+        Serial.println(a);
         b = (b0 >> 4) & B00000111;
-        //Serial.print("Index (b): ");
-        //Serial.println(b);
+        Serial.print("Index (b): ");
+        Serial.println(b);
         d = b1;
         bitWrite(d,0,bitRead(b0,7));
-        //Serial.print("data (d): ");
-        //Serial.println(d);
+        Serial.print("data (d): ");
+        Serial.println(d);
 
         switch(a){
           case B000:
@@ -115,14 +115,6 @@ void read_serial(){
             Serial.println(d);
             distance_pistolet[b]=d;
             break;
-            case B101:
-              //Set largeur jet pistolet
-              Serial.print("Set largeur jet pistolet n°");
-              Serial.print(b);
-              Serial.print(" = ");
-              Serial.println(d);
-              largeur_jet[b]=d;
-              break;
           case B001:
             //INIT
             Serial.println("INIT.");
@@ -151,14 +143,28 @@ void interuption_avance(){
 }
 
 void interuption_monte_baisse(){
+  byte cells_avant;
+  int hauteur;
   position_monte_baisse++;
   //Serial.print(position_monte_baisse);
   for (int p=0;p<NB_PISTOLETS;p++){
-
+    cells_avant = tore_get(distance_pistolet[p]);
+    for (int c=0;c<NB_CELLULES;c++){
+      if (bitRead(cells_avant,c)==1){
+        hauteur = get_hauteur();
+        if (hauteur > seuil_bas_cellules[c] && hauteur < seuil_haut_cellules[c] ){
+          digitalWrite(pin_pistolets[p], HIGH);
+        } else{
+          digitalWrite(pin_pistolets[p], LOW);
+        }
+      } else{
+        digitalWrite(pin_pistolets[p], LOW);
+      }
+    }
   }
 }
 
-void get_hauteur(){
+int get_hauteur(){
   if (position_monte_baisse<position_haut_monte_baisse){
     return position_monte_baisse;
   }else{
@@ -169,12 +175,6 @@ void get_hauteur(){
 
 
 void print_masques(){
-//  Serial.print("masque : ");
-//  for (int i=0;i<L_MASQUES;i++){
-//    Serial.print(masques[i]);
-//    Serial.print("-");
-//  }
-//  Serial.println();
   Serial.print("masque : ");
   for (int i=0;i<L_MASQUES;i++){
     Serial.print(tore_get(i));
