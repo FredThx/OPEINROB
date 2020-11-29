@@ -4,18 +4,20 @@
 #define PIN_FIN_COURSE 4
 
 #define RATIO_AVANCE 10 // Rapport de division du signal de l'avance
+#define NB_PISTOLETS 3
+int pin_pistolets[NB_PISTOLETS] = {8,9,10};
+
 
 byte masques[L_MASQUES]; // On va l'utiliser comme un tore
 int pos_masques = 0; //position dans le tableau masques
 byte cells;
 int position_monte_baisse=0;
 int position_haut_monte_baisse = 100;
-int distance_pistolet[8];
-int pin_pistolets[3] = {8,9,10};
+int distance_pistolet[NB_PISTOLETS];
+int largeur_jet[NB_PISTOLETS];
 int seuil_bas_cellules[8];
 int seuil_haut_cellules[8];
-
-int compteur_avance = 0;
+int compteur_avance = 0; // Utilisé pour diviser la frequence de l'avance par RATIO_AVANCE
 
 void setup() {
   Serial.begin(9600);
@@ -43,9 +45,10 @@ void loop() {
 //
 // a = type de message
 // a=000 : etat cellules
-// a=010 : set hauteur cellules seuil bas
-// a=011 : set hauteur cellules seuil haut
+// a=010 : set hauteur cellule seuil bas
+// a=011 : set hauteur cellule seuil haut
 // a=110 : set distance pistolet
+// a=101 : set largeur jet pistolet
 // a=001 : INIT
 //
 // b = index (de la cellule, du pistolet)
@@ -106,12 +109,20 @@ void read_serial(){
             break;
           case B110:
             //Set distance pistolets
-            Serial.print("Set distance pistolets n°");
+            Serial.print("Set distance pistolet n°");
             Serial.print(b);
             Serial.print(" = ");
             Serial.println(d);
             distance_pistolet[b]=d;
             break;
+            case B101:
+              //Set largeur jet pistolet
+              Serial.print("Set largeur jet pistolet n°");
+              Serial.print(b);
+              Serial.print(" = ");
+              Serial.println(d);
+              largeur_jet[b]=d;
+              break;
           case B001:
             //INIT
             Serial.println("INIT.");
@@ -142,6 +153,9 @@ void interuption_avance(){
 void interuption_monte_baisse(){
   position_monte_baisse++;
   //Serial.print(position_monte_baisse);
+  for (int p=0;p<NB_PISTOLETS;p++){
+
+  }
 }
 
 void get_hauteur(){

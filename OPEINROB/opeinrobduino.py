@@ -54,6 +54,14 @@ class OPeinRobDuino():
         logging.debug(f"send_distance_pistolet : P{index}, distance = {distance}")
         self.send_order([1,1,0],index,distance)
 
+    def send_largeur_jet(self, index, largeur):
+        '''Send la largeur du jet d'un pistolet
+            index       :   index du pistolet
+            largeur     :   largeur du jet du pistolet (en pas)
+        '''
+        logging.debug(f"send_largeur_jet : P{index}, largeur = {largeur}")
+        self.send_order([1,0,1],index,largeur)
+
     def send_init(self):
         '''Initialise l'arduino (vide la memoire)
         '''
