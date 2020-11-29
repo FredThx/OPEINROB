@@ -5,19 +5,29 @@
 Un robot de peinture
 piloté par ar raspberry pi
 '''
+import logging
+import time
+from OPEINROB.cellules import *
 
+class RobotPeint():
 
-
-class RobotPeint(objet):
-
-    def __init__(self, detection_entree):
+    def __init__(self, detection_entree, robduino):
         '''Initialisation
         detection_avance        :   DetectionAvance object
         detection_entree        :   DetectionEntree object
         monte_baisse            :   MonteBaisse object
         '''
         self.detection_entree = detection_entree
+        self.robduino = robduino
 
     def run(self):
         '''Run forever
         '''
+        try:
+            while True:
+                logging.debug(f"Etat des cellules : {self.detection_entree.read()}")
+                self.robduino.send_cells(self.detection_entree.read())
+                self.robduino.read()
+                time.sleep(1)
+        except  KeyboardInterrupt:
+            pass

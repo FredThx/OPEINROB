@@ -41,7 +41,8 @@ void loop() {
 //
 // a = type de message
 // a=000 : etat cellules
-// a=010 : set hauteur cellules
+// a=010 : set hauteur cellules seuil bas
+// a=011 : set hauteur cellules seuil haut
 // a=110 : set distance pistolet
 // a=001 : INIT
 //
@@ -62,20 +63,20 @@ void read_serial(){
         // Si lecture du byte n°1 => on passe
       Serial.println("Invalid 2nd byte received.");
       }else{
-        Serial.print("2 bytes received : ");
-        Serial.print(b0);
-        Serial.print(" ");
-        Serial.println(b1);
+        //Serial.print("2 bytes received : ");
+        //Serial.print(b0);
+        //Serial.print(" ");
+        //Serial.println(b1);
         a = (b0 >> 1) & B00000111;
-        Serial.print("Order (a): ");
-        Serial.println(a);
+        //Serial.print("Order (a): ");
+        //Serial.println(a);
         b = (b0 >> 4) & B00000111;
-        Serial.print("Index (b): ");
-        Serial.println(b);
+        //Serial.print("Index (b): ");
+        //Serial.println(b);
         d = b1;
         bitWrite(d,0,bitRead(b0,7));
-        Serial.print("data (d): ");
-        Serial.println(d);
+        //Serial.print("data (d): ");
+        //Serial.println(d);
 
         switch(a){
           case B000:
@@ -86,8 +87,12 @@ void read_serial(){
             cells = d;
             break;
           case B010:
-            //Set hauteur cellules
-            Serial.println("Set hauteur cells.");
+            //Set hauteur cellules seuil bas
+            Serial.println("Set hauteur seuil bas cells.");
+            break;
+          case B011:
+            //Set hauteur cellules seuil haut
+            Serial.println("Set hauteur seuil haut cells.");
             break;
           case B110:
             //Set distance pistolets
@@ -112,7 +117,7 @@ void interuption_avance(){
   if (compteur_avance == RATIO_AVANCE){
     tore_shift();
     tore_set(0,cells);
-    Serial.println(pos_masques);
+    //Serial.println(pos_masques);
     compteur_avance = 0;
   }
 }
