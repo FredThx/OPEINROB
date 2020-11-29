@@ -10,8 +10,10 @@ int pos_masques = 0; //position dans le tableau masques
 byte cells;
 int position_monte_baisse=0;
 int position_haut_monte_baisse = 100;
-int distance_pistolet[3];
+int distance_pistolet[8];
 int pin_pistolets[3] = {8,9,10};
+int seuil_bas_cellules[8];
+int seuil_haut_cellules[8];
 
 int compteur_avance = 0;
 
@@ -88,19 +90,34 @@ void read_serial(){
             break;
           case B010:
             //Set hauteur cellules seuil bas
-            Serial.println("Set hauteur seuil bas cells.");
+            Serial.print("Set hauteur seuil bas cell N°");
+            Serial.print(b);
+            Serial.print(" = ");
+            Serial.println(d);
+            seuil_bas_cellules[b] = d;
             break;
           case B011:
             //Set hauteur cellules seuil haut
-            Serial.println("Set hauteur seuil haut cells.");
+            Serial.print("Set hauteur seuil haut cell N°");
+            Serial.print(b);
+            Serial.print(" = ");
+            Serial.println(d);
+            seuil_haut_cellules[b] = d;
             break;
           case B110:
             //Set distance pistolets
-            Serial.println("Set distance pistolets.");
+            Serial.print("Set distance pistolets n°");
+            Serial.print(b);
+            Serial.print(" = ");
+            Serial.println(d);
+            distance_pistolet[b]=d;
             break;
           case B001:
             //INIT
             Serial.println("INIT.");
+            for(int i=0;i<L_MASQUES;i++){
+              masques[i]=0;
+            }
             break;
            default:
             Serial.println("Unknow order!");

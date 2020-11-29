@@ -25,9 +25,9 @@ class RobotPeint():
         '''
         try:
             while True:
-                logging.debug(f"Etat des cellules : {self.detection_entree.read()}")
+                #logging.debug(f"Etat des cellules : {self.detection_entree.read()}")
                 self.robduino.send_cells(self.detection_entree.read())
                 self.robduino.read()
-                time.sleep(1)
+                time.sleep(0.1)
         except  KeyboardInterrupt:
             pass

@@ -33,7 +33,7 @@ class OPeinRobDuino():
         '''Send the state of the cells
             cells_state     :   a List
         '''
-        logging.debug(f"send_cells : {cells_state}")
+        #logging.debug(f"send_cells : {cells_state}")
         self.send_order([0,0,0],0,cells_state)
 
     def send_hauteur(self, index, haut_bas, hauteur ):
@@ -54,19 +54,29 @@ class OPeinRobDuino():
         logging.debug(f"send_distance_pistolet : P{index}, distance = {distance}")
         self.send_order([1,1,0],index,distance)
 
-    def send_order(self,a,b,d):
+    def send_init(self):
+        '''Initialise l'arduino (vide la memoire)
+        '''
+        logging.debug(f"Init arduino")
+        self.send_order([0,0,1])
+
+
+    def send_order(self,a,b=0,d=None):
         '''Send to the arduino
             -a       :  order type :
                             [0,0,0] pour envoie cells
                             [0,1,0] : set hauteur cellules seuil bas
                             [0,1,1] : set hauteur cellules seuil haut
                             [1,1,0] : set distance pistolet]
+                            [0,0,1] : sent init
             -b       :  index de la cellule ou pistolet
             -d       :  datas [d0,...]
             C'est à dire envoyer 2 bytes
             [0,a0,a1,a2,b0,b1,b2,d0][1,d1,d2,d3,d4,d5,d6,d7]
             (attention, il faut écrire le bitarray dans l'autre sens)
         '''
+        if d is None:
+            d = []
         a.reverse()
         b = bin(b)[2:]
         b = '0'*(3-len(b))+b
@@ -80,7 +90,7 @@ class OPeinRobDuino():
         buf[8] = d[-1] # 1ere cellule
         buf[7] = 1 # for the 2nd byte
         buf[:7] = bitarray(d[:-1])
-        logging.debug(f"send_cells : {buf}")
+        #logging.debug(f"send_cells : {buf}")
         self.connect()
         self.arduino.write(buf.tobytes())
 
