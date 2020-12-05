@@ -20,6 +20,9 @@ class OPeinRobDuino():
         self.arduino = None
         self.connect()
 
+    def __repr__(self):
+        return f"Arduino on {self.port}"
+
     def connect(self):
         if self.arduino is None or not self.arduino.isOpen():
             self.arduino = serial.Serial(self.port, 9600, timeout = 1)
@@ -34,7 +37,8 @@ class OPeinRobDuino():
             cells_state     :   a List
         '''
         #logging.debug(f"send_cells : {cells_state}")
-        self.send_order([0,0,0],0,cells_state)
+        #self.send_order([0,0,0],0,cells_state)
+        self.send_order("SC",self.list_to_int(cells_state))
 
     def send_hauteur(self, index, haut_bas, hauteur ):
         '''Send la hauteur de la cellule
@@ -43,9 +47,7 @@ class OPeinRobDuino():
             hauteur     :   hauteur (en pas)
         '''
         logging.debug(f"send_hauteur : cell n° {index}, seuil {haut_bas}, hauteur = {hauteur}")
-        seuil = haut_bas == 'haut'
-        self.send_order([0,1,seuil],index,hauteur)
-        time.sleep(0.1)
+        self.send_order("SHC", index, "B" if haut_bas == 'bas' else 'H', hauteur)
 
     def send_distance_pistolet(self, index, distance ):
         '''Send la hauteur de la cellule
@@ -53,55 +55,36 @@ class OPeinRobDuino():
             distance     :   distance entre cellules et pistolet (en pas)
         '''
         logging.debug(f"send_distance_pistolet : P{index}, distance = {distance}")
-        self.send_order([1,1,0],index,distance)
-        time.sleep(0.1)
+        self.send_order("SDP", index, distance)
 
     def send_init(self):
         '''Initialise l'arduino (vide la memoire)
         '''
         logging.debug(f"Init arduino")
-        self.send_order([0,0,1])
-        time.sleep(0.1)
+        self.send_order("INIT")
 
 
-    def send_order(self,a,b=0,d=None):
-        '''Send to the arduino
-            -a       :  order type :
-                            [0,0,0] pour envoie cells
-                            [0,1,0] : set hauteur cellules seuil bas
-                            [0,1,1] : set hauteur cellules seuil haut
-                            [1,1,0] : set distance pistolet]
-                            [0,0,1] : sent init
-            -b       :  index de la cellule ou pistolet
-            -d       :  datas [d0,...]
-            C'est à dire envoyer 2 bytes
-            [0,a0,a1,a2,b0,b1,b2,d0][1,d1,d2,d3,d4,d5,d6,d7]
-            (attention, il faut écrire le bitarray dans l'autre sens)
+    def send_order(self,order, *args):
+        '''Send order to the arduino
+            "ORDER ARG1 ARG2 ...."
         '''
-        if d is None:
-            d = []
-        if type(d) != list:
-            d = self.int_to_bitlist(d)
-        #a.reverse()
-        b = self.int_to_bitlist(b)
-        d.reverse()
-        d = [0]*(8-len(d)) + d
-        buf = bitarray(16)
-        buf[15] = 0 # for the 1st byte
-        buf[12:15] = bitarray(a)
-        buf[9:12] = bitarray(b)
-        buf[8] = d[-1] # 1ere cellule
-        buf[7] = 1 # for the 2nd byte
-        buf[:7] = bitarray(d[:-1])
-        logging.debug(f"send_cells : {buf}")
+        buf = order
+        for arg in args:
+            buf += " " + str(arg)
+        buf += "\n"
         self.connect()
-        self.arduino.write(buf.tobytes())
+        self.arduino.write(buf.encode('ascii'))
+        #logging.debug(f"Send {buf} on {self.arduino}")
 
     @staticmethod
-    def int_to_bitlist(n):
-        n = bin(n)[2:]
-        n = '0'*(3-len(n))+n
-        return  list(n[::-1])
+    def list_to_int(l):
+        '''get a list of digits (0 | 1)
+            return a int
+        '''
+        result = 0
+        for digit in l:
+            result = (result << 1) | digit
+        return result
 
     def read(self):
         while self.arduino.inWaiting()>0:

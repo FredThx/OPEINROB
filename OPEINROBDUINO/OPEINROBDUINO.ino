@@ -1,4 +1,6 @@
-#define L_MASQUES 255
+#include "SerialCommand.h"
+
+#define L_MASQUES 50 //255
 #define PIN_AVANCE 2
 #define PIN_MONTE_BAISSE 3
 #define PIN_FIN_COURSE 4
@@ -14,11 +16,13 @@ byte masques[L_MASQUES]; // On va l'utiliser comme un tore
 int pos_masques = 0; //position dans le tableau masques
 byte cells;
 int position_monte_baisse=0;
-int position_haut_monte_baisse = 100;
+int position_haut_monte_baisse = 75; //TODO : a calculer / mettre à jour en temps reel
 int distance_pistolet[NB_PISTOLETS];
 int seuil_bas_cellules[NB_CELLULES];
 int seuil_haut_cellules[NB_CELLULES];
 int compteur_avance = 0; // Utilisé pour diviser la frequence de l'avance par RATIO_AVANCE
+
+SerialCommand sCmd;
 
 void setup() {
   Serial.begin(9600);
@@ -29,108 +33,131 @@ void setup() {
   // Interuptions sur PIN_AVANCE et PIN_MONTE_BAISSE
   attachInterrupt(digitalPinToInterrupt(PIN_AVANCE), interuption_avance, RISING);
   attachInterrupt(digitalPinToInterrupt(PIN_MONTE_BAISSE), interuption_monte_baisse, RISING);
+  // valeurs par defauts
+  distance_pistolet[0] = 10;
+  distance_pistolet[1] = 20;
+  distance_pistolet[2] = 30;
+  seuil_bas_cellules[0] = 0;
+  seuil_bas_cellules[1] = 30;
+  seuil_bas_cellules[2] = 60;
+  seuil_haut_cellules[0] = 30;
+  seuil_haut_cellules[1] = 60;
+  seuil_haut_cellules[2] = 75;
+
+  //Config des commandes serial
+  sCmd.addCommand("SC", set_cells); // 1 argument(cells)
+  sCmd.addCommand("SHS", set_hauteur_seuil); // 3 arguments(n° cellule, "H"|"B", hauteur)
+  sCmd.addCommand("SDP", set_distance_pistolet); // 2 arguments(n° pistolet, distance)
+  sCmd.addCommand("INIT", init_masques); // Init
+  sCmd.setDefaultHandler(unrecognized);// Handler for command that isn't matched
+  sCmd.addCommand("DEBUG", debug);
+  Serial.println("Ready!");
 }
 
 void loop() {
-  read_serial();
+  sCmd.readSerial();
   //Ce serait bien de mettre ça dans interuption (mais UNO = uniquement2
   if (digitalRead(PIN_FIN_COURSE) == HIGH){
     position_monte_baisse = 0;
   }
 }
 
-//lecture port série
-// Protocole :
-// On lit 2 bytes
-// [0,a0,a1,a2,b0,b1,b2,d0][1,d1,d2,d3,d4,d5,d6,d7]
-//
-// a = type de message
-// a=000 : etat cellules
-// a=010 : set hauteur cellule seuil bas
-// a=011 : set hauteur cellule seuil haut
-// a=110 : set distance pistolet
-// a=001 : INIT
-//
-// b = index (de la cellule, du pistolet)
-//
-// d = valeur
-//
-void read_serial(){
-  byte b0, b1, a, b, d;
-  if (Serial.available() > 1){
-    b0 = Serial.read();
-    if (bitRead(b0,0)==1){
-      // Si lecture du byte n°2 => on passe
-      Serial.println("Invalid 1 st byte received.");
-    }else{
-      b1 = Serial.read();
-      if (bitRead(b1,0)==0){
-        // Si lecture du byte n°1 => on passe
-      Serial.println("Invalid 2nd byte received.");
-      }else{
-        Serial.print("2 bytes received : ");
-        Serial.print(b0);
-        Serial.print(" ");
-        Serial.println(b1);
-        a = (b0 >> 1) & B00000111;
-        Serial.print("Order (a): ");
-        Serial.println(a);
-        b = (b0 >> 4) & B00000111;
-        Serial.print("Index (b): ");
-        Serial.println(b);
-        d = b1;
-        bitWrite(d,0,bitRead(b0,7));
-        Serial.print("data (d): ");
-        Serial.println(d);
+///////////////////////////////////////
+// FUNCTIONS DU PARSER SERIAL
+//////////////////////////////////////
 
-        switch(a){
-          case B000:
-            //Set cells state
-            Serial.print("Set status cells : ");
-            printBinary(d);
-            Serial.println();
-            cells = d;
-            break;
-          case B010:
-            //Set hauteur cellules seuil bas
-            Serial.print("Set hauteur seuil bas cell N°");
-            Serial.print(b);
-            Serial.print(" = ");
-            Serial.println(d);
-            seuil_bas_cellules[b] = d;
-            break;
-          case B011:
-            //Set hauteur cellules seuil haut
-            Serial.print("Set hauteur seuil haut cell N°");
-            Serial.print(b);
-            Serial.print(" = ");
-            Serial.println(d);
-            seuil_haut_cellules[b] = d;
-            break;
-          case B110:
-            //Set distance pistolets
-            Serial.print("Set distance pistolet n°");
-            Serial.print(b);
-            Serial.print(" = ");
-            Serial.println(d);
-            distance_pistolet[b]=d;
-            break;
-          case B001:
-            //INIT
-            Serial.println("INIT.");
-            for(int i=0;i<L_MASQUES;i++){
-              masques[i]=0;
-            }
-            break;
-           default:
-            Serial.println("Unknow order!");
-        }
-      }
-    }
+void set_cells(){
+  /* reponse à SC
+   *  1 argument :   "7" pour 0b111
+   */
+  char *arg;
+  int int_val;
+  arg = sCmd.next();
+  if (arg != NULL && sscanf(arg, "%i", &int_val)){
+    cells = int_val; //Globale var
+    Serial.print("Set status cells : ");
+    printBinary(cells);
+    Serial.println();
+  } else{
+    Serial.println("Error on set_cells.");
   }
 }
 
+void set_hauteur_seuil(){
+  /* Reponse à SHS
+      3 argument :
+     - no_cellule   :   ex "1"
+     - haut_bas     :   "H" ou "B"
+     - hauteur      :   ex "125"
+  */
+  int no_cellule;
+  char haut_bas;
+  int hauteur;
+  char *arg;
+  arg = sCmd.next();
+  if (arg != NULL && sscanf(arg,"%i", &no_cellule)){
+    arg = sCmd.next();
+    if (arg != NULL){
+      haut_bas = arg[0];
+      arg = sCmd.next();
+      if (arg != NULL && sscanf(arg, "%i", &hauteur)){
+        Serial.print("Set hauteur seuil cell N°");
+        Serial.print(no_cellule);
+        if (haut_bas == 'B'){
+          Serial.print(" BAS");
+          seuil_bas_cellules[no_cellule] = hauteur;
+        } else{
+          Serial.print(" HAUT");
+          seuil_haut_cellules[no_cellule] = hauteur;
+        }
+        Serial.print(" = ");
+        Serial.println(hauteur);
+        return;
+      }
+    }
+  }
+ Serial.println("Error on set_hauteur seuil");
+}
 
+void set_distance_pistolet(){
+    /* Reponse à SDP
+      2 argument :
+     - no_pistolet   :   ex "1"
+     - distance      :   ex "125"
+  */
+  int no_pistolet;
+  int distance;
+  char *arg;
+  arg = sCmd.next();
+  if (arg !=  NULL && sscanf(arg, "%i", &no_pistolet)){
+    arg = sCmd.next();
+    if (arg != NULL && sscanf(arg, "%i", &distance)){
+      Serial.print("Set distance pistolet n°");
+      Serial.print(no_pistolet);
+      Serial.print(" = ");
+      Serial.println(distance);
+      distance_pistolet[no_pistolet]=distance;
+      return;
+    }
+  }
+  Serial.println("Error on set_distance_pistolet");
+}
+
+void init_masques(){
+  Serial.println("INIT.");
+  for(int i=0;i<L_MASQUES;i++){
+    masques[i]=0;
+  }
+}
+
+void unrecognized(const char *command) {
+  Serial.print("Unknown cmd : ");
+  Serial.println(command);
+}
+
+/////////////////////////////////
+// INTERRUPTIONS
+/////////////////////////////////
 
 void interuption_avance(){
   compteur_avance++;
@@ -138,6 +165,7 @@ void interuption_avance(){
     tore_shift();
     tore_set(0,cells);
     //Serial.println(pos_masques);
+    //print_masques();
     compteur_avance = 0;
   }
 }
@@ -146,23 +174,41 @@ void interuption_monte_baisse(){
   byte cells_avant;
   int hauteur;
   position_monte_baisse++;
-  //Serial.print(position_monte_baisse);
+  Serial.println(position_monte_baisse);
+  test_pistolets();
+  //Serial.println();
+}
+
+/////////////////////////////////
+// FONCTIONS METIERS
+/////////////////////////////////
+
+void test_pistolets(){
+  bool allume;
+  int hauteur;
+  byte masque;
+  hauteur = get_hauteur();
   for (int p=0;p<NB_PISTOLETS;p++){
-    cells_avant = tore_get(distance_pistolet[p]);
+    masque = tore_get(distance_pistolet[p]);
+    allume = false;
     for (int c=0;c<NB_CELLULES;c++){
-      if (bitRead(cells_avant,c)==1){
-        hauteur = get_hauteur();
-        if (hauteur > seuil_bas_cellules[c] && hauteur < seuil_haut_cellules[c] ){
-          digitalWrite(pin_pistolets[p], HIGH);
-        } else{
-          digitalWrite(pin_pistolets[p], LOW);
-        }
-      } else{
-        digitalWrite(pin_pistolets[p], LOW);
+      if (get_cell(masque, c)){
+        allume = allume || (hauteur > seuil_bas_cellules[c] && hauteur < seuil_haut_cellules[c]);
       }
+    }
+    if (allume){
+      digitalWrite(pin_pistolets[p], HIGH);
+    }else{
+      digitalWrite(pin_pistolets[p], LOW);
     }
   }
 }
+
+
+bool get_cell(byte masque, int cell_no){
+   return (masque & (1 << cell_no)) != 0;
+}
+
 
 int get_hauteur(){
   if (position_monte_baisse<position_haut_monte_baisse){
@@ -206,4 +252,18 @@ void printBinary(byte b) {
   {
     Serial.print((b >> i) & 0X01);//shift and select first bit
   }
+}
+
+void debug(){
+  Serial.print("pos_masques: ");
+  Serial.println(pos_masques);
+  Serial.print("masques: ");
+  print_masques();
+  Serial.print("hauteur :");
+  Serial.println(get_hauteur());
+  Serial.print("Masque pistolet 0 : ");
+  Serial.print("(");
+  Serial.print(distance_pistolet[0]);
+  Serial.print(")");
+  Serial.println(tore_get(distance_pistolet[0]));
 }
