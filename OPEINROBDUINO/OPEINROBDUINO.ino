@@ -16,11 +16,12 @@ byte masques[L_MASQUES]; // On va l'utiliser comme un tore
 int pos_masques = 0; //position dans le tableau masques
 byte cells;
 int position_monte_baisse=0;
-int position_haut_monte_baisse = 75; //TODO : a calculer / mettre à jour en temps reel
+int position_haut_monte_baisse=0;
 int distance_pistolet[NB_PISTOLETS];
 int seuil_bas_cellules[NB_CELLULES];
 int seuil_haut_cellules[NB_CELLULES];
 int compteur_avance = 0; // Utilisé pour diviser la frequence de l'avance par RATIO_AVANCE
+bool etat_fin_course = false;
 
 SerialCommand sCmd;
 
@@ -33,7 +34,7 @@ void setup() {
   // Interuptions sur PIN_AVANCE et PIN_MONTE_BAISSE
   attachInterrupt(digitalPinToInterrupt(PIN_AVANCE), interuption_avance, RISING);
   attachInterrupt(digitalPinToInterrupt(PIN_MONTE_BAISSE), interuption_monte_baisse, RISING);
-  // valeurs par defauts
+  // valeurs par defauts pour debug
   distance_pistolet[0] = 10;
   distance_pistolet[1] = 20;
   distance_pistolet[2] = 30;
@@ -51,6 +52,7 @@ void setup() {
   sCmd.addCommand("INIT", init_masques); // Init
   sCmd.setDefaultHandler(unrecognized);// Handler for command that isn't matched
   sCmd.addCommand("DEBUG", debug);
+  sCmd.addCommand("INFO", send_infos);
   Serial.println("Ready!");
 }
 
@@ -58,7 +60,12 @@ void loop() {
   sCmd.readSerial();
   //Ce serait bien de mettre ça dans interuption (mais UNO = uniquement2
   if (digitalRead(PIN_FIN_COURSE) == HIGH){
-    position_monte_baisse = 0;
+    if (!etat_fin_course){
+      etat_fin_course = true;
+      interuption_fin_course();
+    }
+  }else{
+    etat_fin_course = false;
   }
 }
 
@@ -155,6 +162,21 @@ void unrecognized(const char *command) {
   Serial.println(command);
 }
 
+// Envoie des infos sur une ligne vers le serial
+// "{hauteur} {etat_pistolet0} {etat_pistolet1} ....." ex : "42 1 0 1"
+void send_infos(){
+  char buf[255];
+  sprintf(buf, "%i", get_hauteur());
+  for (int p=0;p<NB_PISTOLETS;p++){
+    if (digitalRead(pin_pistolets[p])){
+      strcat(buf, " 1" );
+    }else{
+      strcat(buf, " 0" );
+    }
+  }
+  Serial.println(buf);
+}
+
 /////////////////////////////////
 // INTERRUPTIONS
 /////////////////////////////////
@@ -164,8 +186,6 @@ void interuption_avance(){
   if (compteur_avance == RATIO_AVANCE){
     tore_shift();
     tore_set(0,cells);
-    //Serial.println(pos_masques);
-    //print_masques();
     compteur_avance = 0;
   }
 }
@@ -174,10 +194,15 @@ void interuption_monte_baisse(){
   byte cells_avant;
   int hauteur;
   position_monte_baisse++;
-  Serial.println(position_monte_baisse);
+  //Serial.println(position_monte_baisse);
   test_pistolets();
-  //Serial.println();
 }
+
+void interuption_fin_course(){
+    // recalcule la position haute = le centre entre 2 fin de course.
+    position_haut_monte_baisse = position_monte_baisse /2;
+    position_monte_baisse = 0;
+  }
 
 /////////////////////////////////
 // FONCTIONS METIERS
@@ -204,7 +229,7 @@ void test_pistolets(){
   }
 }
 
-
+//Renvoie un boolean selon masque et index de cellule
 bool get_cell(byte masque, int cell_no){
    return (masque & (1 << cell_no)) != 0;
 }
