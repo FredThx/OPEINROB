@@ -7,7 +7,7 @@ piloté par ar raspberry pi
 '''
 import logging
 import time
-from multiprocessing import Process
+import threading
 
 from OPEINROB.cellules import *
 
@@ -20,11 +20,11 @@ class RobotPeint():
         '''
         self.detection_entree = detection_entree
         self.robduino = robduino
-        self.p_send_cells = Process(target = self.send_cells, daemon = True)
-        self.p_read_robduino = Process(target = self.read_robduino, daemon = True)
-        self.p_get_info = Process(target = self.get_info, daemon = True)
+        self.p_send_cells = threading.Thread(target = self.send_cells, daemon = True)
+        self.p_read_robduino = threading.Thread(target = self.read_robduino, daemon = True)
+        self.p_get_info = threading.Thread(target = self.get_info, daemon = True)
         self.p_read_robduino.start()
-        time.sleep(1)
+        time.sleep(2)
         self.update_robduino()
         time.sleep(1)
 

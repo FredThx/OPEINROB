@@ -126,7 +126,6 @@ class OPeinRobDuino():
     def get_info(self):
         '''Get info
         '''
-        logging.debug(f"{self} : {self.info}")
         return self.info
 
     def read(self):
@@ -142,7 +141,6 @@ class OPeinRobDuino():
                     for p in range(len(liste)-2):
                         info[p] = bool(int(liste[p+2]))
                     self.info = info
-                    logging.debug(f"info set : {info} => {self} : {self.info}")
                 else:
                     logging.debug(f"Arduino : Error on {line}")
             else:
