@@ -8,9 +8,13 @@ class DetectionEntree():
     '''Plusieurs cellules qui detectent les pièces à l'entrée du robot
     '''
     def __init__(self, pins = [], seuils = None, pull = 'up'):
+        '''
+            -   pins    :   E/S for cells ex : [5,6,8]
+            -   seuils  :   ex : [[20,50],[40,60],[50,60]]
+        '''
         GPIO.setmode(GPIO.BCM)
         assert len(pins)<=8,"Trop de cellules. 8 maxi."
-        assert seuils is None or len(pins)==len(hauteurs),"len(pins) <> len(seuils) !"
+        assert seuils is None or len(pins)==len(seuils),"len(pins) <> len(seuils) !"
         self.cells = []
         if seuils is None:
             seuils = [[0,255]]*len(pins)

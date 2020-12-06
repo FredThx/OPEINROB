@@ -1,4 +1,5 @@
 #include "SerialCommand.h"
+//#include <string.h>
 
 #define L_MASQUES 50 //255
 #define PIN_AVANCE 2
@@ -27,6 +28,7 @@ SerialCommand sCmd;
 
 void setup() {
   Serial.begin(9600);
+    Serial.println("Boot....");
   //Config pins
   pinMode(PIN_AVANCE, INPUT);
   pinMode(PIN_MONTE_BAISSE, INPUT);
@@ -37,7 +39,7 @@ void setup() {
   // Interuptions sur PIN_AVANCE et PIN_MONTE_BAISSE
   attachInterrupt(digitalPinToInterrupt(PIN_AVANCE), interuption_avance, RISING);
   attachInterrupt(digitalPinToInterrupt(PIN_MONTE_BAISSE), interuption_monte_baisse, RISING);
-  // valeurs par defauts pour debug
+  // valeurs par defauts pour debug : TODO : 0-255
   distance_pistolet[0] = 10;
   distance_pistolet[1] = 20;
   distance_pistolet[2] = 30;
@@ -85,9 +87,9 @@ void set_cells(){
   arg = sCmd.next();
   if (arg != NULL && sscanf(arg, "%i", &int_val)){
     cells = int_val; //Globale var
-    Serial.print("Set status cells : ");
-    printBinary(cells);
-    Serial.println();
+    //Serial.print("Set status cells : ");
+    //printBinary(cells);
+    //Serial.println();
   } else{
     Serial.println("Error on set_cells.");
   }
@@ -111,17 +113,22 @@ void set_hauteur_seuil(){
       haut_bas = arg[0];
       arg = sCmd.next();
       if (arg != NULL && sscanf(arg, "%i", &hauteur)){
-        Serial.print("Set hauteur seuil cell N°");
-        Serial.print(no_cellule);
-        if (haut_bas == 'B'){
-          Serial.print(" BAS");
-          seuil_bas_cellules[no_cellule] = hauteur;
-        } else{
-          Serial.print(" HAUT");
-          seuil_haut_cellules[no_cellule] = hauteur;
+        if (no_cellule < NB_CELLULES){
+          Serial.print("Set hauteur seuil cell ");
+          Serial.print(no_cellule);
+          if (haut_bas == 'B'){
+            Serial.print(" BAS");
+            seuil_bas_cellules[no_cellule] = hauteur;
+          } else{
+            Serial.print(" HAUT");
+            seuil_haut_cellules[no_cellule] = hauteur;
+          }
+          Serial.print(" = ");
+          Serial.println(hauteur);
+        }else{
+          Serial.println("Error : no cellule incorect.");
         }
-        Serial.print(" = ");
-        Serial.println(hauteur);
+
         return;
       }
     }
@@ -168,8 +175,12 @@ void unrecognized(const char *command) {
 // Envoie des infos sur une ligne vers le serial
 // "{hauteur} {etat_pistolet0} {etat_pistolet1} ....." ex : "42 1 0 1"
 void send_infos(){
+
   char buf[255];
-  sprintf(buf, "%i", get_hauteur());
+  strcpy(buf, "INFO ");
+  char char_hauteur[10];
+  sprintf(char_hauteur, "%i", get_hauteur());
+  strcat(buf, char_hauteur);
   for (int p=0;p<NB_PISTOLETS;p++){
     if (digitalRead(pin_pistolets[p])){
       strcat(buf, " 1" );
