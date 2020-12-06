@@ -2,6 +2,7 @@
 # -*- coding:utf-8 -*
 import logging, serial, time
 from bitarray import bitarray
+from threading import RLock
 
 class OPeinRobDuino():
     '''Un arduino sur lequel est connecté
@@ -19,6 +20,7 @@ class OPeinRobDuino():
         self.port = port
         self.arduino = None
         self.info = {}
+        self.serial_write_lock = RLock()
         self.connect()
         logging.info(f"{self} created.")
 
@@ -82,16 +84,17 @@ class OPeinRobDuino():
         '''Send order to the arduino
             "ORDER ARG1 ARG2 ...."
         '''
-        buf = order
-        for arg in args:
-            buf += " " + str(arg)
-        buf += "\n"
-        if self.connect():
-            try:
-                self.arduino.write(buf.encode('ascii'))
-            except serial.SerialException:
-                logging.error(f"Arduino on {self.port} not connected.")
-        #logging.debug(f"Send {buf} on {self.arduino}")
+        with self.serial_write_lock:
+            buf = order
+            for arg in args:
+                buf += " " + str(arg)
+            buf += "\n"
+            if self.connect():
+                try:
+                    self.arduino.write(buf.encode('ascii'))
+                except serial.SerialException:
+                    logging.error(f"Arduino on {self.port} not connected.")
+            #logging.debug(f"Send {buf} on {self.arduino}")
 
     @staticmethod
     def list_to_int(l):
