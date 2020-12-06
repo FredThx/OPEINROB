@@ -31,6 +31,9 @@ void setup() {
   pinMode(PIN_AVANCE, INPUT);
   pinMode(PIN_MONTE_BAISSE, INPUT);
   pinMode(PIN_FIN_COURSE, INPUT);
+  for (int p=0;p<NB_PISTOLETS;p++){
+    pinMode(pin_pistolets[p], OUTPUT);
+  }
   // Interuptions sur PIN_AVANCE et PIN_MONTE_BAISSE
   attachInterrupt(digitalPinToInterrupt(PIN_AVANCE), interuption_avance, RISING);
   attachInterrupt(digitalPinToInterrupt(PIN_MONTE_BAISSE), interuption_monte_baisse, RISING);

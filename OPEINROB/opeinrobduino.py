@@ -25,12 +25,19 @@ class OPeinRobDuino():
 
     def connect(self):
         if self.arduino is None or not self.arduino.isOpen():
-            self.arduino = serial.Serial(self.port, 9600, timeout = 1)
-            time.sleep(0.1)
-            if self.arduino.isOpen():
+            try:
+                self.arduino = serial.Serial(self.port, 9600, timeout = 1)
+                time.sleep(0.1)
+            except serial.serialutil.SerialException:
+                pass
+            if self.arduino and self.arduino.isOpen():
                 logging.info(f"Arduino connected on {self.port}")
+                return True
             else:
                 logging.error(f"Arduino on {self.port} not connected.")
+                return False
+        else:
+            return True
 
     def send_cells(self, cells_state):
         '''Send the state of the cells
@@ -72,8 +79,11 @@ class OPeinRobDuino():
         for arg in args:
             buf += " " + str(arg)
         buf += "\n"
-        self.connect()
-        self.arduino.write(buf.encode('ascii'))
+        if self.connect():
+            try:
+                self.arduino.write(buf.encode('ascii'))
+            except serial.SerialException:
+                logging.error(f"Arduino on {self.port} not connected.")
         #logging.debug(f"Send {buf} on {self.arduino}")
 
     @staticmethod
@@ -87,7 +97,12 @@ class OPeinRobDuino():
         return result
 
     def read(self):
-        while self.arduino.inWaiting()>0:
-            line = self.arduino.readline()
-            #self.arduino.flushInput()
-            logging.debug(f"Arduino : {line}")
+        if self.connect():
+            try:
+                while self.arduino.inWaiting()>0:
+                    line = self.arduino.readline()
+                    #self.arduino.flushInput()
+                    logging.debug(f"Arduino : {line}")
+            except OSError:
+                logging.error(f"Arduino on {self.port} not connected.")
+                self.arduino.close()
